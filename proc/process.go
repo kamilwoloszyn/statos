@@ -2,7 +2,6 @@ package proc
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -48,9 +47,16 @@ func RetrieveProcesses() ([]Process, error) {
 		if len(rawProperties) != 52 {
 			return nil, fmt.Errorf("incopatibile stat file: %s", statPath)
 		}
-
-		processes[i].Utime = int64(binary.BigEndian.Uint64(rawProperties[13]))
-		processes[i].Stime = int64(binary.BigEndian.Uint64(rawProperties[14]))
+		utime, err := strconv.ParseInt(string(rawProperties[13]), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		stime, err := strconv.ParseInt(string(rawProperties[14]), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		processes[i].Utime = utime
+		processes[i].Stime = stime
 
 	}
 
@@ -59,7 +65,7 @@ func RetrieveProcesses() ([]Process, error) {
 }
 
 func convAndFilterEntries(entries []os.DirEntry) []Process {
-	result := make([]Process, len(entries))
+	result := make([]Process, 0, len(entries))
 
 	for _, v := range entries {
 		// processess are represented by dirs
