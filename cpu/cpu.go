@@ -72,18 +72,19 @@ func GetCPUInfo() (CPU, error) {
 	if err != nil {
 		return CPU{}, fmt.Errorf("parse %s: %v", proc.ProcessesLocation+pathCpuInfo, err)
 	}
-	var cpu CPU
 
 	clktck := C.auxval()
-	cpu.CLKTCK = int(clktck)
 
 	// we don't care if the file doesn't exist
 	// that's optional
-	maxClock, err := os.ReadFile(absPathMaxFreq)
+	maxClockRaw, err := os.ReadFile(absPathMaxFreq)
+	var maxClock float32
 	if err == nil {
-		maxFreq, err := strconv.ParseFloat(string(maxClock), 32)
+		maxFreq, err := strconv.ParseFloat(
+			strings.TrimSpace(string(maxClockRaw)), 32,
+		)
 		if err == nil {
-			cpu.MaxClock = float32(maxFreq)
+			maxClock = float32(maxFreq)
 		}
 	}
 	var coreClocks []float32 = make([]float32, 0, 8)
@@ -94,7 +95,8 @@ func GetCPUInfo() (CPU, error) {
 	return CPU{
 		CurrentHiClock: Max(coreClocks...),
 		CLKTCK:         int(clktck),
-		NumCores:       len(coreClocks),
+		MaxClock:       maxClock,
+		NumCores:       len(coreClocks) - 1,
 	}, nil
 }
 
@@ -138,10 +140,20 @@ func parseCpuInfo(rawData []byte) ([]CPUInfoSchema, error) {
 	delimiter := []byte("\n")
 	rows := bytes.Split(rawData, delimiter)
 	for _, row := range rows {
+		if len(row) == 0 {
+			// assumed that new row occurs here
+			result = append(result, currentItem)
+			currentItem = CPUInfoSchema{}
+			continue
+		}
 		delimiter = []byte(":")
 		kv := bytes.Split(row, delimiter)
+
 		keyStr := string(kv[0])
-		valueStr := string(kv[1])
+		var valueStr string
+		if len(kv) > 1 {
+			valueStr = string(kv[1])
+		}
 
 		switch {
 		case strings.Contains(keyStr, labelProcessor):
@@ -203,9 +215,6 @@ func parseCpuInfo(rawData []byte) ([]CPUInfoSchema, error) {
 			currentItem.AddressSizes = strings.TrimSpace(valueStr)
 		case strings.Contains(keyStr, labelPowerManagement):
 			currentItem.PowerManagement = strings.TrimSpace(valueStr)
-		case keyStr == "\n":
-			result = append(result, currentItem)
-			currentItem = CPUInfoSchema{}
 		}
 	}
 	return result, nil
