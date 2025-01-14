@@ -35,7 +35,7 @@ func RetrieveProcesses() ([]Process, error) {
 		return nil, errors.New("processes not found")
 	}
 	whiteSpaceSep := []byte(" ")
-	for i := 0; i < len(processes); i++ {
+	for i := range len(processes) {
 		statPath := fmt.Sprintf(ProcessPathTemplate, processes[i].PID, AttrProcessStat)
 		raw, err := os.ReadFile(
 			statPath,
