@@ -18,6 +18,7 @@ const (
 // Process describe system process
 type Process struct {
 	PID   string
+	Name  string
 	Utime int64
 	Stime int64
 }
@@ -57,7 +58,8 @@ func RetrieveProcesses() ([]Process, error) {
 		}
 		processes[i].Utime = utime
 		processes[i].Stime = stime
-
+		// cutting braces from name
+		processes[i].Name = string(rawProperties[1][1 : len(rawProperties[1])-1])
 	}
 
 	return processes, nil
